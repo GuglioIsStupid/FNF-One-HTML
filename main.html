@@ -55,7 +55,7 @@
             }
         }
         loadFrame(xmlstring) {
-            // xmlstring is NOT a path, it is the full xml string
+            // xmlstring is NOT a path, it is the full xml string.... because web-js is STUPID and can't read a server file
             var parser = new DOMParser();
             var xmlDoc = parser.parseFromString(xmlstring, "text/xml");
             var frames = xmlDoc.getElementsByTagName("SubTexture");
