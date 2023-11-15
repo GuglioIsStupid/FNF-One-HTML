@@ -66,7 +66,13 @@
                 var y = parseInt(frame.getAttribute("y"));
                 var width = parseInt(frame.getAttribute("width"));
                 var height = parseInt(frame.getAttribute("height"));
-                this.frames.push([name, x, y, width, height]);
+                // if frameX and frameY exist
+                var frameX = 0;
+                var frameY = 0;
+                if (frame.hasAttribute("frameX")) frameX = parseInt(frame.getAttribute("frameX"));
+                if (frame.hasAttribute("frameY")) frameY = parseInt(frame.getAttribute("frameY"));
+                
+                this.frames.push([name, x, y, width, height, frameX, frameY]);
             }
         }
         addAnimationFromPrefix(name, prefix, framerate=30, loop=false) {
@@ -110,7 +116,7 @@
                     this.image,
                     this.curFrame[1], this.curFrame[2],
                     this.curFrame[3], this.curFrame[4],
-                    this.x + this.origin[0] - this.offset[0], this.y + this.origin[1] - this.offset[1],
+                    this.x + this.origin[0] - this.offset[0] + this.curFrame[5], this.y + this.origin[1] - this.offset[1] + this.curFrame[6],
                     this.curFrame[3], this.curFrame[4]
                     )
             } else {
