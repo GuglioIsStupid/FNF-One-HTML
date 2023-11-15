@@ -8,7 +8,211 @@
 <body>
     <!--1280x720 canvas-->
     <canvas id="MainGame" width="1280" height="720"></canvas>
-    <script src="game/main.js" type="text/javascript" defer></script>
+    <script type="text/javascript">
+    // get canvas
+    var canvas = document.getElementById("MainGame");
+    // get context
+    var ctx = canvas.getContext("2d");
+    // set background color
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // set text color
+    ctx.fillStyle = "#FFFFFF";
+    // set font
+    ctx.font = "30px Arial";
+    
+    // Classes
+    class Sprite {
+        constructor(x, y, path) {
+            this.x = x;
+            this.y = y;
+            this.path = path;
+            this.image = new Image();
+            this.image.src = path;
+            this.scale = [1, 1];
+            this.origin = [0, 0];
+            this.offset = [0, 0];
+            this.angle = 0;
+
+            this.frame = 0;
+            this.curFrame = null;
+            this.animations = [];
+            this.frames = [];
+            this.curAnimation = null;
+            this.animationPlaying = false;
+        }
+        update() {
+            if (this.animationPlaying) {
+                this.frame += this.curAnimation[2] / 60;
+                if (this.frame >= this.curAnimation[1].length) {
+                    if (this.curAnimation[3]) {
+                        this.frame = 0;
+                    } else {
+                        this.animationPlaying = false;
+                    }
+                }
+                this.curFrame = this.curAnimation[1][Math.floor(this.frame)];
+            }
+        }
+        loadFrame(xmlstring) {
+            // xmlstring is NOT a path, it is the full xml string
+            var parser = new DOMParser();
+            var xmlDoc = parser.parseFromString(xmlstring, "text/xml");
+            var frames = xmlDoc.getElementsByTagName("SubTexture");
+            for (var i = 0; i < frames.length; i++) {
+                var frame = frames[i];
+                var name = frame.getAttribute("name");
+                var x = parseInt(frame.getAttribute("x"));
+                var y = parseInt(frame.getAttribute("y"));
+                var width = parseInt(frame.getAttribute("width"));
+                var height = parseInt(frame.getAttribute("height"));
+                this.frames.push([name, x, y, width, height]);
+            }
+        }
+        addAnimationFromPrefix(name, prefix, framerate=30, loop=false) {
+            var frames = [];
+            for (var i = 0; i < this.frames.length; i++) {
+                var frame = this.frames[i];
+                if (frame[0].startsWith(prefix)) {
+                    frames.push(frame);
+                }
+            }
+            this.animations.push([name, frames, framerate, loop]);
+        }
+        playAnimation(animName, force) {
+            // return if not finish and not force
+            if (this.curAnimation != null && !force) return;
+
+            // set animation
+            this.curAnimation = this.getAnimation(animName);
+            this.curFrame = this.curAnimation[1][0];
+            this.frame = 0;
+            this.animationPlaying = true;
+        }
+        getAnimation(name) {
+            for (var i = 0; i < this.animations.length; i++) {
+                var anim = this.animations[i];
+                if (anim[0] == name) {
+                    return anim;
+                }
+            }
+            return null;
+        }
+        // draw sprite
+        draw() {
+            ctx.save();
+            ctx.rotate(this.angle);
+            //ctx.scale(this.scale[0], this.scale[1]);
+            // does curFrame exist?
+            if (this.curFrame != null) {
+                //console.log(this.curFrame);
+                ctx.drawImage(
+                    this.image,
+                    this.curFrame[1], this.curFrame[2],
+                    this.curFrame[3], this.curFrame[4],
+                    this.x + this.origin[0] - this.offset[0], this.y + this.origin[1] - this.offset[1],
+                    this.curFrame[3], this.curFrame[4]
+                    )
+            } else {
+                ctx.drawImage(this.image, this.offset[0], this.offset[1]);
+            }
+        }
+    }
+
+    class State {
+        constructor() {
+            this.sprites = [];
+        }
+        enter() {
+            // enter state
+        }
+        exit() {
+            // exit state
+        }
+        // add sprite to state
+        addSprite(sprite) {
+            this.sprites.push(sprite);
+        }
+        // remove sprite from state
+        removeSprite(sprite) {
+            this.sprites.splice(this.sprites.indexOf(sprite), 1);
+        }
+        // update state
+        update() {
+            for (var i = 0; i < this.sprites.length; i++) {
+                console.log(this.sprites[i]);
+                this.sprites[i].update();
+            }
+        }
+        // draw state
+        draw() {
+            for (var i = 0; i < this.sprites.length; i++) {
+                this.sprites[i].draw();
+            }
+        }
+    }
+
+    // states
+    TestState = new State();
+    // enter function (override)
+    TestState.enter = function() {
+        // add sprites
+        this.addSprite(testSprite);
+    }
+    // exit function (override)
+    TestState.exit = function() {
+        // remove sprites
+        this.removeSprite(testSprite);
+    }
+    TestState.update = function() {
+        for (var i = 0; i < this.sprites.length; i++) {
+            this.sprites[i].update();
+        }
+        // update sprites
+        this.sprites[0].x = Math.sin(Date.now() / 1000) * 100 + 100;
+    }
+
+    function switchState(state) {
+        curState.exit();
+        curState = state;
+        curState.enter();
+    }
+
+    testSprite = new Sprite(100, 100, "assets/test.png");
+    testSprite.loadFrame('<\?xml version="1.0" encoding="utf-8"\?>' +
+                        '<TextureAtlas imagePath="test.png">'+
+                            '<SubTexture name="test0000" x="0" y="0" width="100" height="100"/>'+
+                            '<SubTexture name="test0001" x="25" y="0" width="150" height="100"/>'+
+                        '</TextureAtlas>'
+                    )
+    testSprite.addAnimationFromPrefix("idle", "test", 1, true);
+    testSprite.playAnimation("idle", true);
+    curState = new State();
+
+    switchState(TestState);
+
+    // update and draw loop
+
+    function update() {
+        curState.update();
+    }
+
+    function draw() {
+        // clear screen
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // draw stuff
+        curState.draw();
+    }
+
+    function main() {
+        update();
+        draw();
+        requestAnimationFrame(main);
+    }
+
+    main();
+    </script>
 </body>
 
 <!--main.js running every frame-->
