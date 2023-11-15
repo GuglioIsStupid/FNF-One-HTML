@@ -11,7 +11,7 @@ if not os.path.isfile(filename):
     sys.exit(1)
 
 # read file
-js_string = "img_data = '"
+js_string = "img_data = 'data:image/png; base64, "
 with open(filename, 'rb') as file:
     # convert image to b64
     img_data = base64.b64encode(file.read())
