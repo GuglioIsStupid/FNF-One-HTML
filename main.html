@@ -8,6 +8,17 @@
 <body>
     <!--1280x720 canvas-->
     <canvas id="MainGame" width="1280" height="720"></canvas>
+    <!--jquery-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!--disable scrolling with arrpw keys-->
+    <script>
+        window.addEventListener("keydown", function(e) {
+            // space and arrow keys
+            if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+                e.preventDefault();
+            }
+        }, false);
+    </script>
     <script type="text/javascript">
     // get canvas
     var canvas = document.getElementById("MainGame");
@@ -174,8 +185,11 @@
         for (var i = 0; i < this.sprites.length; i++) {
             this.sprites[i].update();
         }
-        // update sprites
-        this.sprites[0].x = Math.sin(Date.now() / 1000) * 100 + 100;
+
+        if (input.keys.left.down) testSprite.x -= 5;
+        if (input.keys.right.down) testSprite.x += 5;
+        if (input.keys.up.down) testSprite.y -= 5;
+        if (input.keys.down.down) testSprite.y += 5;
     }
 
     function switchState(state) {
@@ -199,8 +213,64 @@
 
     // update and draw loop
 
+    class InputKey {
+        constructor(code) {
+            this.code = code;
+            this.pressed = false;
+            this.down = false;
+            this.up = false;
+            this.released = false;
+        }
+    }
+
+    input = {
+        keys: {
+
+            left: new InputKey(37),
+            up: new InputKey(38),
+            right: new InputKey(39),
+            down: new InputKey(40),
+        },
+        mouse: {
+            x: 0,
+            y: 0,
+            left: false,
+            right: false,
+            middle: false
+        }
+    }
+
     function update() {
+        // update input
         curState.update();
+
+        $(document).keydown(function() {
+            for (var key in input.keys) {
+                if (event.keyCode == input.keys[key].code) {
+                    input.keys[key].pressed = true;
+                    input.keys[key].down = true;
+                    input.keys[key].released = false;
+                    input.keys[key].up = false;
+                }
+            }
+        });
+        $(document).keyup(function() {
+            console.log("keyup");
+            for (var key in input.keys) {
+                if (event.keyCode == input.keys[key].code) {
+                    input.keys[key].pressed = false;
+                    input.keys[key].up = true;
+                    input.keys[key].released = true;
+                    input.keys[key].down = false;
+                }
+            }
+        });
+
+        // set released and pressed to false
+        for (var key in input.keys) {
+            input.keys[key].released = false;
+            input.keys[key].up = false;
+        }
     }
 
     function draw() {
@@ -221,5 +291,4 @@
     </script>
 </body>
 
-<!--main.js running every frame-->
 </html>
