@@ -11,4 +11,7 @@ One word. Coding...
 TBD. Project is still in progress.
 
 ## How big is it?
-Main.html filesize: ![Main.html filesize](https://img.shields.io/github/size/guglioisstupid/FNF-one-html/main.html?label=main.html%20filesize&style=for-the-badge)
+![Main.html filesize](https://img.shields.io/github/size/guglioisstupid/FNF-one-html/main.html?label=main.html%20filesize&style=for-the-badge)
+
+## How do I run it?
+Web browser. That's it.
