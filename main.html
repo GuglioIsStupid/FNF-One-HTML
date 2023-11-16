@@ -31,8 +31,57 @@
     ctx.fillStyle = "#FFFFFF";
     // set font
     ctx.font = "30px Arial";
+
+    BaseFramerate = 60;
+    deltaTime = 0;
+    lastTime = 0;
+    curTime = 0; 
     
     // Classes
+    class Group {
+        constructor() {
+            this.members = [];
+        }
+
+        add(sprite) {
+            this.members.push(sprite);
+        }
+
+        remove(sprite, index=-1) {
+            if (index == -1) {
+                index = this.members.indexOf(sprite);
+            }
+            this.members.splice(index, 1);
+        }
+
+        update(deltaTime) {
+            for (var i = 0; i < this.members.length; i++) {
+                if (this.members[i].update != undefined) this.members[i].update(deltaTime);
+            }
+        }
+
+        draw() {
+            for (var i = 0; i < this.members.length; i++) {
+                if (this.members[i].draw != undefined) this.members[i].draw();
+            }
+        }
+
+        clear() {
+            this.members = [];
+        }
+
+        length() {
+            return this.members.length;
+        }
+
+        get(index) {
+            return this.members[index];
+        }
+
+        indexOf(sprite) {
+            return this.members.indexOf(sprite);
+        }
+    }
     class Sprite {
         constructor(x, y, path) {
             this.x = x;
@@ -51,10 +100,13 @@
             this.frames = [];
             this.curAnimation = null;
             this.animationPlaying = false;
+
+            this.width = this.image.width;
+            this.height = this.image.height;
         }
-        update() {
+        update(deltaTime) {
             if (this.animationPlaying) {
-                this.frame += this.curAnimation[2] / 60;
+                this.frame += deltaTime * this.curAnimation[2];
                 if (this.frame >= this.curAnimation[1].length) {
                     if (this.curAnimation[3]) {
                         this.frame = 0;
@@ -115,23 +167,232 @@
             }
             return null;
         }
+        setGraphicSize(width, height) {
+            if (width == null) width = 0;
+            if (height == null) height = 0;
+
+            this.scale[0] = width / this.width;
+            this.scale[1] = height / this.height;
+
+            if (width <= 0)
+                this.scale[0] = this.scale[1];
+            else if (height <= 0)
+                this.scale[1] = this.scale[0];
+        }
+        getFrameWidth() {
+            // if curFrame exists
+            if (this.curFrame != null)
+                return this.curFrame[3];
+            else 
+                return this.width;
+        }
+        getFrameHeight() {
+            // if curFrame exists
+            if (this.curFrame != null)
+                return this.curFrame[4];
+            else 
+                return this.height;
+        }
+        updateHitbox() {
+            var w = this.getFrameWidth();
+            var h = this.getFrameHeight();
+
+            this.width = Math.abs(this.scale[0]) * w;
+            this.height = Math.abs(this.scale[1]) * h;
+
+            if (this.width == 0) this.width = 1;
+
+            this.offset[0] = -0.5 * (this.width - w);
+            this.offset[1] = -0.5 * (this.height - h);
+
+            this.centerOrigin();
+        }
+        centerOrigin() {
+            this.origin[0] = 0.5 * this.width;
+            this.origin[1] = 0.5 * this.height;
+        }
+        centerOffsets() {
+            this.offset[0] = 0.5 * (this.getFrameWidth() - this.width);
+            this.offset[1] = 0.5 * (this.getFrameHeight() - this.height);
+        }
         // draw sprite
         draw() {
             ctx.save();
             ctx.rotate(this.angle);
             //ctx.scale(this.scale[0], this.scale[1]);
             // does curFrame exist?
+            var x = this.x;
+            x += this.origin[0] - this.offset[0];
+            var y = this.y;
+            y += this.origin[1] - this.offset[1];
+            var ox = this.origin[0];
+            var oy = this.origin[1];
+
+            if (this.curFrame != null) {
+                ox += this.curFrame[5];
+                oy += this.curFrame[6];
+            }
+
+            // translate x and y
+            ctx.translate(x, y);
+
             if (this.curFrame != null) {
                 //console.log(this.curFrame);
                 ctx.drawImage(
                     this.image,
                     this.curFrame[1], this.curFrame[2],
                     this.curFrame[3], this.curFrame[4],
-                    this.x + this.origin[0] - this.offset[0] + this.curFrame[5], this.y + this.origin[1] - this.offset[1] + this.curFrame[6],
+                    -ox, -oy,
                     this.curFrame[3], this.curFrame[4]
                     )
             } else {
-                ctx.drawImage(this.image, this.offset[0], this.offset[1]);
+                ctx.drawImage(this.image, -ox, -oy);
+            }
+
+            ctx.restore();
+        }
+    }
+
+    // Strum (an extension of Sprite)
+    class Strum extends Sprite {
+        constructor(x, y, data, player) {
+            super(x, y, "assets/NOTE_assets.png");
+            this.loadFrame('<?xml version="1.0" encoding="utf-8"?>' +
+                '<TextureAtlas imagePath="NOTE_assets.png">' +
+                '<!-- Created with Adobe Animate version 21.0.0.35450 -->' +
+                '<!-- http://www.adobe.com/products/animate.html -->' +
+                '<SubTexture name="arrow static instance 10000" x="488" y="238" width="155" height="158"/>' +
+                '<SubTexture name="arrow static instance 20000" x="647" y="238" width="157" height="155"/>' +
+                '<SubTexture name="arrow static instance 30000" x="808" y="238" width="155" height="157"/>' +
+                '<SubTexture name="arrow static instance 40000" x="323" y="240" width="157" height="154"/>' +
+                '<SubTexture name="blue hold end instance 10000" x="1062" y="452" width="51" height="64"/>' +
+                '<SubTexture name="blue hold piece instance 10000" x="1282" y="457" width="51" height="44"/>' +
+                '<SubTexture name="blue instance 10000" x="0" y="240" width="158" height="154"/>' +
+                '<SubTexture name="down confirm instance 10000" x="0" y="0" width="240" height="236"/>' +
+                '<SubTexture name="down confirm instance 10001" x="244" y="0" width="240" height="236"/>' +
+                '<SubTexture name="down confirm instance 10002" x="1206" y="235" width="221" height="218" frameX="-6" frameY="-12" frameWidth="240" frameHeight="236"/>' +
+                '<SubTexture name="down confirm instance 10003" x="1206" y="235" width="221" height="218" frameX="-6" frameY="-12" frameWidth="240" frameHeight="236"/>' +
+                '<SubTexture name="down press instance 10000" x="805" y="399" width="143" height="139" frameX="-4" frameY="-3" frameWidth="150" frameHeight="146"/>' +
+                '<SubTexture name="down press instance 10001" x="805" y="399" width="143" height="139" frameX="-4" frameY="-3" frameWidth="150" frameHeight="146"/>' +
+                '<SubTexture name="down press instance 10002" x="1898" y="0" width="150" height="146"/>' +
+                '<SubTexture name="down press instance 10003" x="1898" y="0" width="150" height="146"/>' +
+                '<SubTexture name="green hold end instance 10000" x="1007" y="452" width="51" height="64"/>' +
+                '<SubTexture name="green hold piece instance 10000" x="1227" y="457" width="51" height="44"/>' +
+                '<SubTexture name="green instance 10000" x="162" y="240" width="157" height="154"/>' +
+                '<SubTexture name="left confirm instance 10000" x="972" y="0" width="230" height="232"/>' +
+                '<SubTexture name="left confirm instance 10001" x="1438" y="233" width="220" height="222" frameX="-5" frameY="-5" frameWidth="230" frameHeight="232"/>' +
+                '<SubTexture name="left confirm instance 10002" x="1438" y="0" width="227" height="229" frameX="-2" frameY="-1" frameWidth="230" frameHeight="232"/>' +
+                '<SubTexture name="left confirm instance 10003" x="1438" y="0" width="227" height="229" frameX="-2" frameY="-1" frameWidth="230" frameHeight="232"/>' +
+                '<SubTexture name="left press instance 10000" x="1898" y="449" width="139" height="142" frameX="-4" frameY="-3" frameWidth="146" frameHeight="149"/>' +
+                '<SubTexture name="left press instance 10001" x="1898" y="449" width="139" height="142" frameX="-4" frameY="-3" frameWidth="146" frameHeight="149"/>' +
+                '<SubTexture name="left press instance 10002" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10003" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10004" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10005" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10006" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10007" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10008" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10009" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10010" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10011" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10012" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10013" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10014" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10015" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10016" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10017" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10018" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="left press instance 10019" x="1898" y="150" width="146" height="149"/>' +
+                '<SubTexture name="pruple end hold instance 10000" x="1117" y="452" width="51" height="64"/>' +
+                '<SubTexture name="purple hold piece instance 10000" x="1337" y="457" width="51" height="44"/>' +
+                '<SubTexture name="purple instance 10000" x="0" y="398" width="154" height="157"/>' +
+                '<SubTexture name="red hold end instance 10000" x="952" y="452" width="51" height="64"/>' +
+                '<SubTexture name="red hold piece instance 10000" x="1172" y="457" width="51" height="44"/>' +
+                '<SubTexture name="red instance 10000" x="647" y="397" width="154" height="157"/>' +
+                '<SubTexture name="right confirm instance 10000" x="1669" y="0" width="225" height="228" frameX="-1" frameY="-2" frameWidth="228" frameHeight="231"/>' +
+                '<SubTexture name="right confirm instance 10001" x="1669" y="232" width="225" height="228" frameX="-1" frameY="-2" frameWidth="228" frameHeight="231"/>' +
+                '<SubTexture name="right confirm instance 10002" x="1206" y="0" width="228" height="231"/>' +
+                '<SubTexture name="right confirm instance 10003" x="1206" y="0" width="228" height="231"/>' +
+                '<SubTexture name="right press instance 10000" x="469" y="400" width="139" height="142" frameX="-3" frameY="-7" frameWidth="149" frameHeight="152"/>' +
+                '<SubTexture name="right press instance 10001" x="469" y="400" width="139" height="142" frameX="-3" frameY="-7" frameWidth="149" frameHeight="152"/>' +
+                '<SubTexture name="right press instance 10002" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10003" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10004" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10005" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10006" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10007" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10008" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10009" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10010" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10011" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10012" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10013" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10014" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10015" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10016" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10017" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10018" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10019" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10020" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10021" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10022" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10023" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10024" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10025" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="right press instance 10026" x="316" y="398" width="149" height="152"/>' +
+                '<SubTexture name="up confirm instance 10000" x="488" y="0" width="238" height="234"/>' +
+                '<SubTexture name="up confirm instance 10001" x="730" y="0" width="238" height="234"/>' +
+                '<SubTexture name="up confirm instance 10002" x="972" y="236" width="216" height="212" frameX="-11" frameY="-11" frameWidth="238" frameHeight="234"/>' +
+                '<SubTexture name="up confirm instance 10003" x="972" y="236" width="216" height="212" frameX="-11" frameY="-11" frameWidth="238" frameHeight="234"/>' +
+                '<SubTexture name="up press instance 10000" x="1898" y="303" width="144" height="142" frameX="-6" frameY="-4" frameWidth="154" frameHeight="151"/>' +
+                '<SubTexture name="up press instance 10001" x="1898" y="303" width="144" height="142" frameX="-6" frameY="-4" frameWidth="154" frameHeight="151"/>' +
+                '<SubTexture name="up press instance 10002" x="158" y="398" width="154" height="151"/>' +
+                '<SubTexture name="up press instance 10003" x="158" y="398" width="154" height="151"/>' +
+                '</TextureAtlas>')
+            
+            this.noteData = data;
+            this.player = player;
+            this.swagWidth = (160*0.7);
+            this.ID = data;
+
+            this.setGraphicSize(this.width*0.7)
+
+            switch (this.noteData) {
+                case 0:
+                    this.addAnimationFromPrefix("static", "arrow static instance 1");
+                    this.addAnimationFromPrefix("pressed", "left arrow", 24, false);
+                    this.addAnimationFromPrefix("confirm", "left confirm", 24, false);
+                    break;
+                case 1:
+                    this.addAnimationFromPrefix("static", "arrow static instance 2");
+                    this.addAnimationFromPrefix("pressed", "down arrow", 24, false);
+                    this.addAnimationFromPrefix("confirm", "down confirm", 24, false);
+                    break;
+                case 2:
+                    this.addAnimationFromPrefix("static", "arrow static instance 4");
+                    this.addAnimationFromPrefix("pressed", "up arrow", 24, false);
+                    this.addAnimationFromPrefix("confirm", "up confirm", 24, false);
+                    break;
+                case 3:
+                    this.addAnimationFromPrefix("static", "arrow static instance 3");
+                    this.addAnimationFromPrefix("pressed", "right arrow", 24, false);
+                    this.addAnimationFromPrefix("confirm", "right confirm", 24, false);
+                    break;
+            }
+
+            this.updateHitbox();
+        }
+        postAddedToGroup() {
+            this.playAnim("static");
+            this.X += this.swagWidth * this.noteData;
+            this.X += 50;
+            this.X += 1280/2 * this.player;
+        }
+        playAnim(anim, force=false) {
+            this.playAnimation(anim, force);
+            if (this.curAnimation != null) {
+                this.centerOffsets();
+                this.centerOrigin();
             }
         }
     }
@@ -157,7 +418,6 @@
         // update state
         update() {
             for (var i = 0; i < this.sprites.length; i++) {
-                console.log(this.sprites[i]);
                 this.sprites[i].update();
             }
         }
@@ -170,46 +430,161 @@
     }
 
     // states
-    TestState = new State();
+    TitleState = new State();
     // enter function (override)
-    TestState.enter = function() {
+    TitleState.enter = function() {
         // add sprites
-        this.addSprite(testSprite);
+        //this.addSprite(testSprite);
+        this.girlfriendTitle = new Sprite(1280*0.4, 720*0.07, "assets/menu/gfDanceTitle.png");
+        this.girlfriendTitle.loadFrame('<?xml version="1.0" encoding="utf-8"?>' +
+            '<TextureAtlas imagePath="gfDanceTitle.png">' +
+            '<!-- Created with Adobe Animate version 20.0.0.17400 -->' +
+            '<!-- http://www.adobe.com/products/animate.html -->' +
+            '<SubTexture name="gfDance0000" x="0" y="0" width="717" height="648" frameX="-2" frameY="-14" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0001" x="727" y="0" width="721" height="648" frameX="0" frameY="-14" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0002" x="1458" y="0" width="721" height="646" frameX="0" frameY="-16" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0003" x="2189" y="0" width="717" height="646" frameX="-2" frameY="-16" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0004" x="2916" y="0" width="717" height="649" frameX="-2" frameY="-13" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0005" x="0" y="659" width="717" height="649" frameX="-2" frameY="-13" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0006" x="727" y="659" width="717" height="650" frameX="-2" frameY="-12" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0007" x="1454" y="659" width="717" height="661" frameX="-2" frameY="-1" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0008" x="1454" y="659" width="717" height="661" frameX="-2" frameY="-1" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0009" x="1454" y="659" width="717" height="661" frameX="-2" frameY="-1" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0010" x="2181" y="659" width="717" height="662" frameX="-2" frameY="0" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0011" x="2181" y="659" width="717" height="662" frameX="-2" frameY="0" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0012" x="2181" y="659" width="717" height="662" frameX="-2" frameY="0" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0013" x="2908" y="659" width="717" height="661" frameX="-2" frameY="-1" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0014" x="2908" y="659" width="717" height="661" frameX="-2" frameY="-1" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0015" x="0" y="1331" width="717" height="650" frameX="-2" frameY="-12" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0016" x="727" y="1331" width="721" height="650" frameX="0" frameY="-12" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0017" x="1458" y="1331" width="721" height="650" frameX="0" frameY="-12" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0018" x="2189" y="1331" width="717" height="650" frameX="-2" frameY="-12" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0019" x="2916" y="1331" width="717" height="651" frameX="-2" frameY="-11" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0020" x="0" y="1992" width="717" height="651" frameX="-2" frameY="-11" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0021" x="727" y="1992" width="717" height="652" frameX="-2" frameY="-10" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0022" x="1454" y="1992" width="717" height="657" frameX="-2" frameY="-5" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0023" x="1454" y="1992" width="717" height="657" frameX="-2" frameY="-5" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0024" x="1454" y="1992" width="717" height="657" frameX="-2" frameY="-5" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0025" x="2181" y="1992" width="717" height="656" frameX="-2" frameY="-6" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0026" x="2181" y="1992" width="717" height="656" frameX="-2" frameY="-6" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0027" x="2181" y="1992" width="717" height="656" frameX="-2" frameY="-6" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0028" x="2908" y="1992" width="717" height="656" frameX="-2" frameY="-6" frameWidth="721" frameHeight="662"/>' +
+            '<SubTexture name="gfDance0029" x="2908" y="1992" width="717" height="656" frameX="-2" frameY="-6" frameWidth="721" frameHeight="662"/>' +
+            '</TextureAtlas>')
+        this.girlfriendTitle.addAnimationFromPrefix("idle", "gfDance", 30, true);
+        this.girlfriendTitle.playAnimation("idle", true);
+        this.addSprite(this.girlfriendTitle);
+
+        this.logoBumpin = new Sprite(-150, -100, "assets/menu/logoBumpin.png");
+        this.logoBumpin.loadFrame('<?xml version="1.0" encoding="utf-8"?>' +
+            '<TextureAtlas imagePath="logoBumpin.png">' +
+            '<!-- Created with Adobe Animate version 20.0.0.17400 -->' +
+            '<!-- http://www.adobe.com/products/animate.html -->' +
+            '<SubTexture name="logo bumpin0000" x="0" y="0" width="894" height="670" frameX="-22" frameY="-16" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0001" x="904" y="0" width="939" height="703"/>' +
+            '<SubTexture name="logo bumpin0002" x="904" y="0" width="939" height="703"/>' +
+            '<SubTexture name="logo bumpin0003" x="0" y="713" width="911" height="683" frameX="-14" frameY="-10" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0004" x="0" y="713" width="911" height="683" frameX="-14" frameY="-10" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0005" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0006" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0007" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0008" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0009" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0010" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0011" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0012" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0013" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '<SubTexture name="logo bumpin0014" x="921" y="713" width="905" height="679" frameX="-17" frameY="-12" frameWidth="939" frameHeight="703"/>' +
+            '</TextureAtlas>')
+        this.logoBumpin.addAnimationFromPrefix("idle", "logo bumpin", 24, true);
+        this.logoBumpin.playAnimation("idle", true);
+        this.addSprite(this.logoBumpin);
     }
     // exit function (override)
-    TestState.exit = function() {
+    TitleState.exit = function() {
         // remove sprites
-        this.removeSprite(testSprite);
+        this.removeSprite(this.girlfriendTitle);
+        this.removeSprite(this.logoBumpin);
     }
-    TestState.update = function() {
+    TitleState.update = function(deltaTime) {
         for (var i = 0; i < this.sprites.length; i++) {
-            this.sprites[i].update();
+            this.sprites[i].update(deltaTime);
         }
 
-        if (input.keys.left.down) testSprite.x -= 5;
-        if (input.keys.right.down) testSprite.x += 5;
-        if (input.keys.up.down) testSprite.y -= 5;
-        if (input.keys.down.down) testSprite.y += 5;
+        if (input.keys.confirm.down) {
+            switchState(MainMenuState);
+        }
+    }
+
+    MainMenuState = new State();
+    MainMenuState.enter = function() {
+        this.menuBG = new Sprite(0, 0, "assets/menuBG.png");
+        this.sprites.push(this.menuBG);
+
+        /* this.menu_story_mode = new Sprite(0, 0, "assets/menu/menu_story_mode.png");
+        this.menu_story_mode.loadFrame('<?xml version="1.0" encoding="utf-8"?>' +
+            '<TextureAtlas imagePath="menu_story_mode.png">' +
+            '<!-- Created with Adobe Animate version 21.0.1.37179 -->' +
+            '<!-- http://www.adobe.com/products/animate.html -->' +
+            '<SubTexture name="story_mode basic0000" x="1377" y="4" width="615" height="122" pivotX="8.4" pivotY="9.8"/>' +
+            '<SubTexture name="story_mode basic0001" x="1377" y="4" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0002" x="1377" y="4" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0003" x="4" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0004" x="4" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0005" x="4" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0006" x="619" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0007" x="619" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode basic0008" x="619" y="133" width="615" height="122"/>' +
+            '<SubTexture name="story_mode white0000" x="1234" y="133" width="796" height="173" pivotX="11.05" pivotY="17.15" frameX="0" frameY="-3" frameWidth="796" frameHeight="181"/>' +
+            '<SubTexture name="story_mode white0001" x="4" y="306" width="794" height="174" frameX="-2" frameY="-2" frameWidth="796" frameHeight="181"/>' +
+            '<SubTexture name="story_mode white0002" x="798" y="306" width="794" height="181" frameX="0" frameY="0" frameWidth="796" frameHeight="181"/>' +
+            '</TextureAtlas>')
+        this.menu_story_mode.addAnimationFromPrefix("idle", "story_mode basic", 24, true);
+        this.menu_story_mode.playAnimation("idle", true);
+        this.sprites.push(this.menu_story_mode); */
+    }
+    MainMenuState.exit = function() {
+        this.sprites = [];
+    }
+    MainMenuState.update = function(deltaTime) {
+        for (var i = 0; i < this.sprites.length; i++) {
+            this.sprites[i].update(deltaTime);
+        }
+
+        if (input.keys.confirm.down) {
+            switchState(PlayState);
+        }
+    }
+
+    PlayState = new State();
+    PlayState.enter = function() {
+        this.strumLineGroup = new Group();
+        this.playerStrums = new Group();
+        this.enemyStrums = new Group();
+
+        this.addSprite(this.strumLineGroup);
+
+        for (var i = 0; i < 4; i++) {
+            var strumNote = new Strum(75, 84, i, 0);
+            this.strumLineGroup.add(strumNote);
+            this.playerStrums.add(strumNote);
+            strumNote.postAddedToGroup();
+        }
     }
 
     function switchState(state) {
+        for (var key in input.keys) {
+            input.keys[key].pressed = false;
+            input.keys[key].up = true;
+            input.keys[key].released = true;
+            input.keys[key].down = false;
+        }
         curState.exit();
         curState = state;
         curState.enter();
     }
 
-    testSprite = new Sprite(100, 100, "assets/test.png");
-    testSprite.loadFrame('<\?xml version="1.0" encoding="utf-8"\?>' +
-                        '<TextureAtlas imagePath="test.png">'+
-                            '<SubTexture name="test0000" x="0" y="0" width="100" height="100"/>'+
-                            '<SubTexture name="test0001" x="25" y="0" width="150" height="100"/>'+
-                        '</TextureAtlas>'
-                    )
-    testSprite.addAnimationFromPrefix("idle", "test", 1, true);
-    testSprite.playAnimation("idle", true);
     curState = new State();
-
-    switchState(TestState);
 
     // update and draw loop
 
@@ -225,11 +600,11 @@
 
     input = {
         keys: {
-
             left: new InputKey(37),
             up: new InputKey(38),
             right: new InputKey(39),
             down: new InputKey(40),
+            confirm: new InputKey(13),
         },
         mouse: {
             x: 0,
@@ -241,8 +616,11 @@
     }
 
     function update() {
+        // update delta time
+        curTime = Date.now();
+        deltaTime = (curTime - lastTime) / 1000;
         // update input
-        curState.update();
+        curState.update(deltaTime);
 
         $(document).keydown(function() {
             for (var key in input.keys) {
@@ -255,7 +633,6 @@
             }
         });
         $(document).keyup(function() {
-            console.log("keyup");
             for (var key in input.keys) {
                 if (event.keyCode == input.keys[key].code) {
                     input.keys[key].pressed = false;
@@ -271,7 +648,11 @@
             input.keys[key].released = false;
             input.keys[key].up = false;
         }
+
+        lastTime = curTime;
     }
+
+    switchState(TitleState);
 
     function draw() {
         // clear screen
